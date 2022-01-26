@@ -1,11 +1,5 @@
 package taskflow
 
-import (
-	"fmt"
-	"github.com/crochee/lirity/log"
-	"runtime"
-)
-
 // JobWrapper decorates the given Job with some behavior.
 type JobWrapper func(Job) Job
 
@@ -33,23 +27,23 @@ func (c Chain) Then(j Job) Job {
 	return j
 }
 
-// Recover panics in wrapped jobs and log them with the provided logger.
-func Recover(logger log.Interface) JobWrapper {
-	return func(j Job) Job {
-		return FuncJob(func() {
-			defer func() {
-				if r := recover(); r != nil {
-					const size = 64 << 10
-					buf := make([]byte, size)
-					buf = buf[:runtime.Stack(buf, false)]
-					err, ok := r.(error)
-					if !ok {
-						err = fmt.Errorf("%v", r)
-					}
-					logger.Error(err, "panic", "stack", "...\n"+string(buf))
-				}
-			}()
-			j.Run()
-		})
-	}
-}
+//// Recover panics in wrapped jobs and log them with the provided logger.
+//func Recover(logger log.Interface) JobWrapper {
+//	return func(j Job) Job {
+//		return FuncJob(func() {
+//			defer func() {
+//				if r := recover(); r != nil {
+//					const size = 64 << 10
+//					buf := make([]byte, size)
+//					buf = buf[:runtime.Stack(buf, false)]
+//					err, ok := r.(error)
+//					if !ok {
+//						err = fmt.Errorf("%v", r)
+//					}
+//					logger.Error(err, "panic", "stack", "...\n"+string(buf))
+//				}
+//			}()
+//			j.Run()
+//		})
+//	}
+//}
