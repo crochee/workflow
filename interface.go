@@ -16,6 +16,7 @@ type (
 
 	// Atom is library's minimum unit
 	Atom interface {
+		ID() uint64
 		Name() string
 		PreExecute(ctx context.Context) error
 		Execute(ctx context.Context) error
@@ -25,19 +26,14 @@ type (
 		AfterRollback(ctx context.Context) error
 	}
 
-	Task interface {
-		Scheduler
-		Atom
-		Notifier
-	}
-
 	Notifier interface {
 		Notify(ctx context.Context, progress float32) error
 	}
 
-	Retry interface {
+	Task interface {
 		Scheduler
 		Atom
+		Notifier
 		Policy() Policy
 		OnFailure(ctx context.Context, policy Policy, attempts int, interval time.Duration) error
 	}
