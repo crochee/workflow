@@ -1,47 +1,38 @@
 package taskflow
 
+import (
+	"github.com/crochee/lirity/id"
+)
+
 type linearFlow struct {
-	id       uint64
-	name     string
-	listFlow []Flow
-	cur      int
+	name  string
+	tasks []Task
+	index int
 }
 
-func (l *linearFlow) ID() uint64 {
-	return l.id
+func NewLinearFlow(opts ...Option) Flow {
+	option := &options{
+		name: "flow-" + id.UUID(),
+	}
+	for _, opt := range opts {
+		opt.Apply(option)
+	}
+	return &linearFlow{
+		name:  option.name,
+		tasks: make([]Task, 0, 2),
+	}
 }
 
 func (l *linearFlow) Name() string {
 	return l.name
 }
 
-func (l *linearFlow) Requires(ids ...uint64) bool {
+func (l *linearFlow) Requires(ids ...string) bool {
 	// todo
 
 	return true
 }
 
-func (l *linearFlow) Add(flows ...Flow) {
-	l.listFlow = append(l.listFlow, flows...)
-}
-
-func (l *linearFlow) IterLinks() []*FlowRelation {
-	length := len(l.listFlow)
-	result := make([]*FlowRelation, 0, length)
-	for index, v := range l.listFlow {
-		var value *FlowRelation
-		if index < length-1 {
-			value = &FlowRelation{
-				A:    v,
-				B:    l.listFlow[index+1],
-				Meta: nil,
-			}
-		}
-		result = append(result, value)
-	}
-	return result
-}
-
-func (l *linearFlow) IterJobs() []*JobRelation {
-	panic("implement me")
+func (l *linearFlow) Add(tasks ...Task) {
+	l.tasks = append(l.tasks, tasks...)
 }

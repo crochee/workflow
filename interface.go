@@ -14,9 +14,8 @@ type (
 		Next(t time.Time) time.Time
 	}
 
-	// Task is library's minimum unit
-	Task interface {
-		ID() uint64
+	// Atom is library's minimum unit
+	Atom interface {
 		Name() string
 		PreExecute(ctx context.Context) error
 		Execute(ctx context.Context) error
@@ -26,24 +25,29 @@ type (
 		AfterRollback(ctx context.Context) error
 	}
 
+	Task interface {
+		Scheduler
+		Atom
+		Notifier
+	}
+
 	Notifier interface {
 		Notify(ctx context.Context, progress float32) error
 	}
 
-	RetryHandler interface {
-		Task
+	Retry interface {
+		Scheduler
+		Atom
 		Policy() Policy
 		OnFailure(ctx context.Context, policy Policy, attempts int, interval time.Duration) error
 	}
 
 	Flow interface {
-		ID() uint64
 		Name() string
-		Requires(ids ...uint64) bool
-		Add(flows ...Flow)
-		IterLinks() []*FlowRelation
-		IterJobs() []*JobRelation
+		Requires(names ...string) bool
+		Add(tasks ...Task)
 	}
+
 	Storage interface {
 	}
 
@@ -60,14 +64,14 @@ type (
 
 type (
 	FlowRelation struct {
-		A  Flow
-		B Flow
+		A    Flow
+		B    Flow
 		Meta map[string]interface{}
 	}
 
 	JobRelation struct {
-		A  Job
-		B Job
+		A    Task
+		B    Task
 		Meta map[string]interface{}
 	}
 )
@@ -75,7 +79,7 @@ type (
 type Policy uint8
 
 const (
-	Revert Policy = 1 + iota
-	RevertAll
-	Retry
+	PolicyRevert Policy = 1 + iota
+	PolicyRevertAll
+	PolicyRetry
 )
