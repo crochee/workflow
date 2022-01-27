@@ -6,36 +6,32 @@ import (
 )
 
 type (
+	Committer interface {
+		Name() string
+		Commit(ctx context.Context) error
+		Rollback(ctx context.Context) error
+	}
+
+	// Task is library's minimum unit
+	Task interface {
+		Execute(ctx context.Context) error
+	}
+
+	TaskWrapper interface {
+		Then(t Task) Task
+	}
+
+	Notifier interface {
+		Event(ctx context.Context, format string, v ...interface{})
+		Notify(ctx context.Context, name string, progress float32)
+	}
+
 	ScheduleParser interface {
 		Parse(spec string) (Scheduler, error)
 	}
 
 	Scheduler interface {
 		Next(t time.Time) time.Time
-	}
-
-	// Atom is library's minimum unit
-	Atom interface {
-		ID() uint64
-		Name() string
-		PreExecute(ctx context.Context) error
-		Execute(ctx context.Context) error
-		AfterExecute(ctx context.Context) error
-		PreRollback(ctx context.Context) error
-		Rollback(ctx context.Context) error
-		AfterRollback(ctx context.Context) error
-	}
-
-	Notifier interface {
-		Notify(ctx context.Context, progress float32) error
-	}
-
-	Task interface {
-		Scheduler
-		Atom
-		Notifier
-		Policy() Policy
-		OnFailure(ctx context.Context, policy Policy, attempts int, interval time.Duration) error
 	}
 
 	Flow interface {

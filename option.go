@@ -1,19 +1,36 @@
 package taskflow
 
-type options struct {
-	name string
+import "time"
+
+type option struct {
+	name     string
+	attempt  int
+	interval time.Duration
+	notifier Notifier
 }
 
-type Option interface {
-	Apply(opt *options)
-}
-
-type nameOption string
-
-func (n nameOption) Apply(opt *options) {
-	opt.name = string(n)
-}
+type Option func(*option)
 
 func WithName(name string) Option {
-	return nameOption(name)
+	return func(o *option) {
+		o.name = name
+	}
+}
+
+func WithAttempt(attempt int) Option {
+	return func(o *option) {
+		o.attempt = attempt
+	}
+}
+
+func WithInterval(interval time.Duration) Option {
+	return func(o *option) {
+		o.interval = interval
+	}
+}
+
+func WithNotifier(notifier Notifier) Option {
+	return func(o *option) {
+		o.notifier = notifier
+	}
 }
