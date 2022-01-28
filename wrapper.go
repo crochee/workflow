@@ -32,7 +32,7 @@ func (f FuncTaskWrapper) Then(t Task) Task {
 // Recover panics in wrapped Tasks and log them with the provided logger.
 func Recover() TaskWrapper {
 	return FuncTaskWrapper(func(task Task) Task {
-		return FuncJob(func(ctx context.Context) error {
+		return FuncTask(func(ctx context.Context) error {
 			defer func() {
 				if r := recover(); r != nil {
 					const size = 64 << 10

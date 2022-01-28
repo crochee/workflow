@@ -7,17 +7,25 @@ type DAG struct {
 	Vertexes []*Vertex
 }
 
-type Vertex struct {
-	key, value interface{}
-	Pre        []*Vertex
-	Next       []*Vertex
-}
-
 func (d *DAG) AddVertex(v *Vertex) {
 	d.Vertexes = append(d.Vertexes, v)
 }
 
-func (from *Vertex) AddEdge(to *Vertex)  {
+type Vertex struct {
+	flow      Flow
+	condition Condition
+	Pre       []*Vertex
+	Next      []*Vertex
+}
+
+func NewVertex(flow Flow) *Vertex {
+	return &Vertex{
+		flow: flow,
+	}
+}
+
+func (from *Vertex) AddEdge(condition Condition, to *Vertex) {
+	from.condition = condition
 	from.Next = append(from.Next, to)
 	to.Pre = append(to.Pre, from)
 }

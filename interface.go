@@ -36,8 +36,12 @@ type (
 
 	Flow interface {
 		Name() string
-		Requires(names ...string) bool
-		Add(tasks ...Task)
+		Add(tasks ...Task) Flow
+		Run(ctx context.Context) error
+	}
+
+	Condition interface {
+		NextFlow() string
 	}
 
 	Storage interface {
