@@ -2,7 +2,6 @@ package taskflow
 
 import (
 	"fmt"
-	"github.com/crochee/taskflow/internal"
 )
 
 /// reference github.com/mostafa-asg/dag
@@ -13,7 +12,7 @@ type Dag struct {
 }
 
 func (d *Dag) Compile(root *Vertex) [][]*Vertex {
-	s := internal.NewStack()
+	s := NewStack()
 	s.Push(root)
 	visited := make(map[string]*Vertex)
 	all := make([][]*Vertex, 0)

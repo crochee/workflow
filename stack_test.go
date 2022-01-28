@@ -1,8 +1,7 @@
-package internal
+package taskflow
 
 import (
 	"fmt"
-	"github.com/crochee/taskflow"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,14 +10,14 @@ import (
 func TestStack(t *testing.T) {
 	s := NewStack()
 	assert.Equal(t, 0, s.length)
-	p1 := taskflow.NewPipelineFlow()
+	p1 := NewPipelineFlow()
 	name1 := p1.Name()
-	s.Push(taskflow.NewVertex(p1))
+	s.Push(NewVertex(p1))
 	assert.Equal(t, 1, s.length)
 
-	p2 := taskflow.NewSpawnFlow()
+	p2 := NewSpawnFlow()
 	name2 := p2.Name()
-	v := taskflow.NewVertex(p2)
+	v := NewVertex(p2)
 	fmt.Println(v)
 	s.Push(v)
 	assert.Equal(t, 2, s.length)

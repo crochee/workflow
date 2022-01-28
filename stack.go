@@ -1,10 +1,8 @@
-package internal
-
-import "github.com/crochee/taskflow"
+package taskflow
 
 type element struct {
 	next  *element
-	value *taskflow.Vertex
+	value *Vertex
 }
 
 type stack struct {
@@ -16,13 +14,13 @@ func NewStack() *stack {
 	return &stack{}
 }
 
-func (s *stack) Push(vertex *taskflow.Vertex) {
+func (s *stack) Push(vertex *Vertex) {
 	entry := &element{next: s.top, value: vertex}
 	s.top = entry
 	s.length++
 }
 
-func (s *stack) Pop() *taskflow.Vertex {
+func (s *stack) Pop() *Vertex {
 	if s.length == 0 {
 		return nil
 	}
@@ -32,7 +30,7 @@ func (s *stack) Pop() *taskflow.Vertex {
 	return entry.value
 }
 
-func (s *stack) Top() *taskflow.Vertex {
+func (s *stack) Top() *Vertex {
 	if s.length == 0 {
 		return nil
 	}
