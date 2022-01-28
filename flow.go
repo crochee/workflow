@@ -17,7 +17,7 @@ type pipelineFlow struct {
 
 func NewPipelineFlow(opts ...Option) Flow {
 	o := &option{
-		name: "pipeline-flow-" + id.UUID(),
+		name: "pipeline-Flow-" + id.UUID(),
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -59,7 +59,7 @@ type spawnFlow struct {
 
 func NewSpawnFlow(opts ...Option) Flow {
 	o := &option{
-		name: "spawn-flow-" + id.UUID(),
+		name: "spawn-Flow-" + id.UUID(),
 	}
 	for _, opt := range opts {
 		opt(o)

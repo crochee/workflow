@@ -41,7 +41,7 @@ type (
 	}
 
 	Condition interface {
-		NextFlow() string
+		NextFlow() []string
 	}
 
 	Storage interface {
