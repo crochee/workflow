@@ -6,19 +6,12 @@ import (
 )
 
 type (
-	Committer interface {
-		Name() string
-		Commit(ctx context.Context) error
-		Rollback(ctx context.Context) error
-	}
-
 	// Task is library's minimum unit
 	Task interface {
-		Execute(ctx context.Context) error
-	}
-
-	TaskWrapper interface {
-		Then(t Task) Task
+		Name() string
+		Policy() Policy
+		Commit(ctx context.Context) error
+		Rollback(ctx context.Context) error
 	}
 
 	Notifier interface {
@@ -75,7 +68,7 @@ type (
 type Policy uint8
 
 const (
-	PolicyRevert Policy = 1 + iota
+	PolicyRetry Policy = 1 + iota
+	PolicyRevert
 	PolicyRevertAll
-	PolicyRetry
 )

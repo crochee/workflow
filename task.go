@@ -3,119 +3,59 @@ package taskflow
 import (
 	"context"
 	"fmt"
-	"math"
-	"time"
+	"runtime"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/crochee/lirity/log"
 )
 
-type FuncTask func(ctx context.Context) error
-
-func (f FuncTask) Execute(ctx context.Context) error { return f(ctx) }
-
-type commitRetryTask struct {
-	c        Committer
-	notifier Notifier
-	policy   Policy
-	attempts int
-	interval time.Duration
+type retryTask struct {
+	t      Task
+	name   string
+	policy Policy
 }
 
-func NewTask(c Committer, opts ...Option) Task {
+func NewRecoverTask(t Task, opts ...Option) Task {
 	o := &option{
-		notifier: NoneNotify{},
-		policy:   PolicyRevert,
+		name:   t.Name(),
+		policy: t.Policy(),
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
-	return &commitRetryTask{
-		c:        c,
-		policy:   o.policy,
-		attempts: o.attempt,
-		interval: o.interval,
-		notifier: o.notifier,
+	return &retryTask{
+		t:      t,
+		name:   o.name,
+		policy: o.policy,
 	}
 }
 
-func (r *commitRetryTask) Execute(ctx context.Context) error {
-	name := r.c.Name()
-	r.notifier.Event(ctx, fmt.Sprintf("task called %s starts running", name))
-	r.notifier.Notify(ctx, name, 0)
+func (r *retryTask) Name() string {
+	return r.name
+}
 
-	err := r.c.Commit(ctx)
-	if err == nil {
-		r.notifier.Event(ctx, fmt.Sprintf("task called %s ends running", name))
-		r.notifier.Notify(ctx, name, 100)
-		return nil
-	}
-	r.notifier.Event(ctx, fmt.Sprintf("task called %s commits appears %e,and want to rollback", name, err))
+func (r *retryTask) Policy() Policy {
+	return r.policy
+}
 
-	if r.policy == PolicyRetry {
-		var (
-			attempts  int
-			breakFlag bool
-		)
-		backOff := r.newBackOff() // 退避算法 保证时间间隔为指数级增长
-		currentInterval := 0 * time.Millisecond
-		t := time.NewTimer(currentInterval)
-		for {
-			select {
-			case <-t.C:
-				shouldRetry := attempts < r.attempts
-				if err = r.c.Commit(ctx); err == nil {
-					shouldRetry = false
-				}
-				log.FromContext(ctx).Warnf("task called %s runs for the %d time,and commit appears %e",
-					r.c.Name(), attempts, err)
-				if !shouldRetry {
-					t.Stop()
-					breakFlag = true
-					break
-				}
-				// 计算下一次
-				currentInterval = backOff.NextBackOff()
-				attempts++
-				// 定时器重置
-				t.Reset(currentInterval)
-			case <-ctx.Done():
-				t.Stop()
-				err = ctx.Err()
-				breakFlag = true
-			}
-			if breakFlag {
-				break
-			}
+func (r *retryTask) Commit(ctx context.Context) error {
+	defer innerRecover(ctx)
+	return r.t.Commit(ctx)
+}
+
+func (r *retryTask) Rollback(ctx context.Context) error {
+	defer innerRecover(ctx)
+	return r.t.Rollback(ctx)
+}
+
+func innerRecover(ctx context.Context) {
+	if r := recover(); r != nil {
+		const size = 64 << 10
+		buf := make([]byte, size)
+		buf = buf[:runtime.Stack(buf, false)]
+		err, ok := r.(error)
+		if !ok {
+			err = fmt.Errorf("%v", r)
 		}
+		log.FromContext(ctx).Errorf("[Recover] %e \n stack:%s", err, buf)
 	}
-	if err == nil {
-		r.notifier.Event(ctx, fmt.Sprintf("task called %s ends running", name))
-		r.notifier.Notify(ctx, name, 100)
-		return nil
-	}
-	r.notifier.Event(ctx, fmt.Sprintf("task called %s commits appears %e,and want to rollback", name, err))
-
-	err = r.c.Rollback(ctx)
-	r.notifier.Event(ctx, fmt.Sprintf("task called %s rollbacks appears %e", name, err))
-	r.notifier.Notify(ctx, name, 0)
-	return err
-}
-
-func (r *commitRetryTask) newBackOff() backoff.BackOff {
-	if r.attempts < 2 || r.interval <= 0 {
-		return &backoff.ZeroBackOff{}
-	}
-
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = r.interval
-
-	// calculate the multiplier for the given number of attempts
-	// so that applying the multiplier for the given number of attempts will not exceed 2 times the initial interval
-	// it allows to control the progression along the attempts
-	b.Multiplier = math.Pow(2, 1/float64(r.attempts-1))
-
-	// according to docs, b.Reset() must be called before using
-	b.Reset()
-	return b
 }
