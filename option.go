@@ -1,6 +1,9 @@
 package taskflow
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type option struct {
 	name     string
@@ -8,6 +11,7 @@ type option struct {
 	interval time.Duration
 	notifier Notifier
 	policy   Policy
+	recover  func(ctx context.Context, notifier Notifier)
 }
 
 type Option func(*option)
@@ -39,5 +43,11 @@ func WithNotifier(notifier Notifier) Option {
 func WithPolicy(policy Policy) Option {
 	return func(o *option) {
 		o.policy = policy
+	}
+}
+
+func WithRecover(recover func(context.Context, Notifier)) Option {
+	return func(o *option) {
+		o.recover = recover
 	}
 }

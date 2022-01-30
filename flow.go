@@ -2,17 +2,17 @@ package taskflow
 
 import (
 	"context"
-	"fmt"
+	"encoding/hex"
 	"math"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/crochee/lirity/id"
-	"github.com/crochee/lirity/log"
+	uuid "github.com/satori/go.uuid"
 )
 
 type pipelineFlow struct {
+	id       string
 	name     string
 	tasks    []Task
 	notifier Notifier
@@ -22,8 +22,10 @@ type pipelineFlow struct {
 }
 
 func NewPipelineFlow(opts ...Option) Flow {
+	uid := uuid.NewV1()
+	uidStr := hex.EncodeToString(uid[:])
 	o := &option{
-		name:     "pipeline-Flow-" + id.UUID(),
+		name:     "pipeline-flow-" + uidStr,
 		notifier: NoneNotify{},
 		policy:   PolicyRetry,
 	}
@@ -31,9 +33,14 @@ func NewPipelineFlow(opts ...Option) Flow {
 		opt(o)
 	}
 	return &pipelineFlow{
+		id:    uidStr,
 		name:  o.name,
 		tasks: make([]Task, 0, 2),
 	}
+}
+
+func (p *pipelineFlow) ID() string {
+	return p.name
 }
 
 func (p *pipelineFlow) Name() string {
@@ -60,6 +67,7 @@ func (p *pipelineFlow) Run(ctx context.Context) error {
 }
 
 type spawnFlow struct {
+	id       string
 	name     string
 	tasks    []Task
 	index    int
@@ -75,8 +83,10 @@ type spawnFlow struct {
 }
 
 func NewSpawnFlow(opts ...Option) Flow {
+	uid := uuid.NewV1()
+	uidStr := hex.EncodeToString(uid[:])
 	o := &option{
-		name:     "spawn-Flow-" + id.UUID(),
+		name:     "spawn-flow-" + uidStr,
 		notifier: NoneNotify{},
 		policy:   PolicyRetry,
 	}
@@ -84,6 +94,7 @@ func NewSpawnFlow(opts ...Option) Flow {
 		opt(o)
 	}
 	return &spawnFlow{
+		id:       uidStr,
 		name:     o.name,
 		tasks:    make([]Task, 0, 2),
 		notifier: o.notifier,
@@ -91,6 +102,10 @@ func NewSpawnFlow(opts ...Option) Flow {
 		attempts: o.attempt,
 		interval: o.interval,
 	}
+}
+
+func (s *spawnFlow) ID() string {
+	return s.id
 }
 
 func (s *spawnFlow) Name() string {
@@ -142,16 +157,16 @@ func newBackOff(attempts int, interval time.Duration) backoff.BackOff {
 
 func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, attempts int, interval time.Duration) error {
 	taskName := t.Name()
-	notifier.Event(ctx, fmt.Sprintf("task called %s starts running", taskName))
+	notifier.Event(ctx, "task called %s starts running", taskName)
 	notifier.Notify(ctx, taskName, 0)
 
 	err := t.Commit(ctx)
 	if err == nil {
-		notifier.Event(ctx, fmt.Sprintf("task called %s ends running", taskName))
+		notifier.Event(ctx, "task called %s ends running", taskName)
 		notifier.Notify(ctx, taskName, 100)
 		return nil
 	}
-	notifier.Event(ctx, fmt.Sprintf("task called %s commits appears %e,and want to rollback", taskName, err))
+	notifier.Event(ctx, "task called %s commits appears %e,and want to rollback", taskName, err)
 
 	if policy == PolicyRetry {
 		var (
@@ -168,7 +183,7 @@ func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, atte
 				if err = t.Commit(ctx); err == nil {
 					shouldRetry = false
 				}
-				log.FromContext(ctx).Warnf("task called %s runs for the %d time,and commit appears %e",
+				notifier.Event(ctx, "task called %s runs for the %d time,and commit appears %e",
 					taskName, tempAttempts, err)
 				if !shouldRetry {
 					timer.Stop()
@@ -191,14 +206,14 @@ func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, atte
 		}
 	}
 	if err == nil {
-		notifier.Event(ctx, fmt.Sprintf("task called %s ends running", taskName))
+		notifier.Event(ctx, "task called %s ends running", taskName)
 		notifier.Notify(ctx, taskName, 100)
 		return nil
 	}
-	notifier.Event(ctx, fmt.Sprintf("task called %s commits appears %e,and want to rollback", taskName, err))
+	notifier.Event(ctx, "task called %s commits appears %e,and want to rollback", taskName, err)
 
 	err = t.Rollback(ctx)
-	notifier.Event(ctx, fmt.Sprintf("task called %s rollbacks appears %e", taskName, err))
+	notifier.Event(ctx, "task called %s rollbacks appears %e", taskName, err)
 	notifier.Notify(ctx, taskName, 0)
 	return err
 }

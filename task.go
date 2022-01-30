@@ -4,50 +4,60 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-
-	"github.com/crochee/lirity/log"
 )
 
-type retryTask struct {
-	t      Task
-	name   string
-	policy Policy
+type recoverTask struct {
+	t        Task
+	id       string
+	name     string
+	policy   Policy
+	notifier Notifier
+	recover  func(ctx context.Context, notifier Notifier)
 }
 
 func NewRecoverTask(t Task, opts ...Option) Task {
 	o := &option{
-		name:   t.Name(),
-		policy: t.Policy(),
+		name:     t.Name(),
+		notifier: NoneNotify{},
+		policy:   t.Policy(),
+		recover:  innerRecover,
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
-	return &retryTask{
-		t:      t,
-		name:   o.name,
-		policy: o.policy,
+	return &recoverTask{
+		t:        t,
+		id:       t.ID(),
+		name:     o.name,
+		policy:   o.policy,
+		notifier: o.notifier,
+		recover:  o.recover,
 	}
 }
 
-func (r *retryTask) Name() string {
+func (r *recoverTask) ID() string {
+	return r.id
+}
+
+func (r *recoverTask) Name() string {
 	return r.name
 }
 
-func (r *retryTask) Policy() Policy {
+func (r *recoverTask) Policy() Policy {
 	return r.policy
 }
 
-func (r *retryTask) Commit(ctx context.Context) error {
-	defer innerRecover(ctx)
+func (r *recoverTask) Commit(ctx context.Context) error {
+	defer r.recover(ctx, r.notifier)
 	return r.t.Commit(ctx)
 }
 
-func (r *retryTask) Rollback(ctx context.Context) error {
-	defer innerRecover(ctx)
+func (r *recoverTask) Rollback(ctx context.Context) error {
+	defer r.recover(ctx, r.notifier)
 	return r.t.Rollback(ctx)
 }
 
-func innerRecover(ctx context.Context) {
+func innerRecover(ctx context.Context, notifier Notifier) {
 	if r := recover(); r != nil {
 		const size = 64 << 10
 		buf := make([]byte, size)
@@ -56,6 +66,6 @@ func innerRecover(ctx context.Context) {
 		if !ok {
 			err = fmt.Errorf("%v", r)
 		}
-		log.FromContext(ctx).Errorf("[Recover] %e \n stack:%s", err, buf)
+		notifier.Event(ctx, "[Recover] %e \n stack:%s", err, buf)
 	}
 }

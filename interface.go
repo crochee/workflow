@@ -8,6 +8,7 @@ import (
 type (
 	// Task is library's minimum unit
 	Task interface {
+		ID() string
 		Name() string
 		Policy() Policy
 		Commit(ctx context.Context) error
@@ -28,6 +29,7 @@ type (
 	}
 
 	Flow interface {
+		ID() string
 		Name() string
 		Add(tasks ...Task) Flow
 		Run(ctx context.Context) error
