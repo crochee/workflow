@@ -32,6 +32,7 @@ type (
 		ID() string
 		Name() string
 		Add(tasks ...Task) Flow
+		ListTask() []Task
 		Run(ctx context.Context) error
 	}
 

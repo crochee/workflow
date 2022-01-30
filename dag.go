@@ -9,6 +9,7 @@ import (
 // Dag is directed acyclic graph
 type Dag struct {
 	Vertexes []*Vertex
+	visited  map[string]bool
 }
 
 func (d *Dag) Compile(root *Vertex) [][]*Vertex {

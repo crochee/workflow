@@ -56,6 +56,10 @@ func (p *pipelineFlow) Add(tasks ...Task) Flow {
 	return p
 }
 
+func (p *pipelineFlow) ListTask() []Task {
+	return p.tasks
+}
+
 func (p *pipelineFlow) Run(ctx context.Context) error {
 	policy := p.policy
 	for _, task := range p.tasks {
@@ -118,6 +122,10 @@ func (s *spawnFlow) Name() string {
 func (s *spawnFlow) Add(tasks ...Task) Flow {
 	s.tasks = append(s.tasks, tasks...)
 	return s
+}
+
+func (s *spawnFlow) ListTask() []Task {
+	return s.tasks
 }
 
 func (s *spawnFlow) Run(ctx context.Context) error {
