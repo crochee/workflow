@@ -33,9 +33,13 @@ func NewPipelineFlow(opts ...Option) Flow {
 		opt(o)
 	}
 	return &pipelineFlow{
-		id:    uidStr,
-		name:  o.name,
-		tasks: make([]Task, 0, 2),
+		id:       uidStr,
+		name:     o.name,
+		tasks:    make([]Task, 0, 2),
+		notifier: o.notifier,
+		policy:   o.policy,
+		attempts: o.attempt,
+		interval: o.interval,
 	}
 }
 
@@ -70,7 +74,6 @@ type spawnFlow struct {
 	id       string
 	name     string
 	tasks    []Task
-	index    int
 	notifier Notifier
 	policy   Policy
 	attempts int
