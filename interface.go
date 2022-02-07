@@ -6,6 +6,20 @@ import (
 )
 
 type (
+	// Task is library's minimum unit
+	Task interface {
+		ID() string
+		Name() string
+		Policy() Policy
+		Commit(ctx context.Context) error
+		Rollback(ctx context.Context) error
+	}
+
+	Notifier interface {
+		Event(ctx context.Context, format string, v ...interface{})
+		Notify(ctx context.Context, name string, progress float32)
+	}
+
 	ScheduleParser interface {
 		Parse(spec string) (Scheduler, error)
 	}
@@ -14,36 +28,18 @@ type (
 		Next(t time.Time) time.Time
 	}
 
-	// Task is library's minimum unit
-	Task interface {
-		ID() uint64
-		Name() string
-		PreExecute(ctx context.Context) error
-		Execute(ctx context.Context) error
-		AfterExecute(ctx context.Context) error
-		PreRollback(ctx context.Context) error
-		Rollback(ctx context.Context) error
-		AfterRollback(ctx context.Context) error
-	}
-
-	Notifier interface {
-		Notify(ctx context.Context, progress float32) error
-	}
-
-	RetryHandler interface {
-		Task
-		Policy() Policy
-		OnFailure(ctx context.Context, policy Policy, attempts int, interval time.Duration) error
-	}
-
 	Flow interface {
-		ID() uint64
+		ID() string
 		Name() string
-		Requires(ids ...uint64) bool
-		Add(flows ...Flow)
-		IterLinks() []*FlowRelation
-		IterJobs() []*JobRelation
+		Add(tasks ...Task) Flow
+		ListTask() []Task
+		Run(ctx context.Context) error
 	}
+
+	Condition interface {
+		NextFlow() []string
+	}
+
 	Storage interface {
 	}
 
@@ -60,14 +56,14 @@ type (
 
 type (
 	FlowRelation struct {
-		A  Flow
-		B Flow
+		A    Flow
+		B    Flow
 		Meta map[string]interface{}
 	}
 
 	JobRelation struct {
-		A  Job
-		B Job
+		A    Task
+		B    Task
 		Meta map[string]interface{}
 	}
 )
@@ -75,7 +71,7 @@ type (
 type Policy uint8
 
 const (
-	Revert Policy = 1 + iota
-	RevertAll
-	Retry
+	PolicyRetry Policy = 1 + iota
+	PolicyRevert
+	PolicyRevertAll
 )
