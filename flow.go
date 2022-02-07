@@ -61,11 +61,17 @@ func (p *pipelineFlow) ListTask() []Task {
 }
 
 func (p *pipelineFlow) Run(ctx context.Context) error {
-	policy := p.policy
+	var applyAll bool
 	for _, task := range p.tasks {
-		tempPolicy := task.Policy()
-		if policy < tempPolicy {
-			policy = tempPolicy
+		policy := task.Policy()
+		if policy < p.policy {
+			policy = p.policy
+		}
+		if policy == PolicyRevertAll {
+			applyAll = true
+		}
+		if applyAll {
+			policy = PolicyRevertAll
 		}
 		if err := execute(ctx, task, p.notifier, policy, p.attempts, p.interval); err != nil {
 			return err
@@ -134,7 +140,11 @@ func (s *spawnFlow) Run(ctx context.Context) error {
 	for _, task := range s.tasks {
 		wg.Add(1)
 		go func(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, t Task) {
-			if err := execute(ctx, t, s.notifier, s.policy, s.attempts, s.interval); err != nil {
+			policy := t.Policy()
+			if policy < s.policy {
+				policy = s.policy
+			}
+			if err := execute(ctx, t, s.notifier, policy, s.attempts, s.interval); err != nil {
 				s.errOnce.Do(func() {
 					s.err = err
 					cancel()
@@ -177,7 +187,7 @@ func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, atte
 		notifier.Notify(ctx, taskName, 100)
 		return nil
 	}
-	notifier.Event(ctx, "task called %s commits appears %e,and want to rollback", taskName, err)
+	notifier.Event(ctx, "task called %s commits appears %v,and want to rollback", taskName, err)
 
 	if policy == PolicyRetry {
 		var (
@@ -194,7 +204,7 @@ func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, atte
 				if err = t.Commit(ctx); err == nil {
 					shouldRetry = false
 				}
-				notifier.Event(ctx, "task called %s runs for the %d time,and commit appears %e",
+				notifier.Event(ctx, "task called %s runs for the %d time,and commit appears %v",
 					taskName, tempAttempts, err)
 				if !shouldRetry {
 					timer.Stop()
@@ -221,10 +231,10 @@ func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, atte
 		notifier.Notify(ctx, taskName, 100)
 		return nil
 	}
-	notifier.Event(ctx, "task called %s commits appears %e,and want to rollback", taskName, err)
+	notifier.Event(ctx, "task called %s commits appears %v,and want to rollback", taskName, err)
 
 	err = t.Rollback(ctx)
-	notifier.Event(ctx, "task called %s rollbacks appears %e", taskName, err)
+	notifier.Event(ctx, "task called %s rollbacks appears %v", taskName, err)
 	notifier.Notify(ctx, taskName, 0)
 	return err
 }

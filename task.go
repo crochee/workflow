@@ -7,65 +7,55 @@ import (
 )
 
 type recoverTask struct {
-	t        Task
-	id       string
-	name     string
-	policy   Policy
-	notifier Notifier
-	recover  func(ctx context.Context, notifier Notifier)
+	t Task
 }
 
-func NewRecoverTask(t Task, opts ...Option) Task {
-	o := &option{
-		name:     t.Name(),
-		notifier: NoneNotify{},
-		policy:   t.Policy(),
-		recover:  innerRecover,
-	}
-	for _, opt := range opts {
-		opt(o)
-	}
+func SafeTask(t Task) Task {
 	return &recoverTask{
-		t:        t,
-		id:       t.ID(),
-		name:     o.name,
-		policy:   o.policy,
-		notifier: o.notifier,
-		recover:  o.recover,
+		t: t,
 	}
 }
 
-func (r *recoverTask) ID() string {
-	return r.id
+func (rt *recoverTask) ID() string {
+	return rt.t.ID()
 }
 
-func (r *recoverTask) Name() string {
-	return r.name
+func (rt *recoverTask) Name() string {
+	return rt.t.Name()
 }
 
-func (r *recoverTask) Policy() Policy {
-	return r.policy
+func (rt *recoverTask) Policy() Policy {
+	return rt.t.Policy()
 }
 
-func (r *recoverTask) Commit(ctx context.Context) error {
-	defer r.recover(ctx, r.notifier)
-	return r.t.Commit(ctx)
-}
-
-func (r *recoverTask) Rollback(ctx context.Context) error {
-	defer r.recover(ctx, r.notifier)
-	return r.t.Rollback(ctx)
-}
-
-func innerRecover(ctx context.Context, notifier Notifier) {
-	if r := recover(); r != nil {
-		const size = 64 << 10
-		buf := make([]byte, size)
-		buf = buf[:runtime.Stack(buf, false)]
-		err, ok := r.(error)
-		if !ok {
-			err = fmt.Errorf("%v", r)
+func (rt *recoverTask) Commit(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			var ok bool
+			if err, ok = r.(error); !ok {
+				err = fmt.Errorf("found:%v,trace:%s", r, buf)
+			}
 		}
-		notifier.Event(ctx, "[Recover] %e \n stack:%s", err, buf)
-	}
+	}()
+	err = rt.t.Commit(ctx)
+	return
+}
+
+func (rt *recoverTask) Rollback(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			var ok bool
+			if err, ok = r.(error); !ok {
+				err = fmt.Errorf("found:%v,trace:%s", r, buf)
+			}
+		}
+	}()
+	err = rt.t.Rollback(ctx)
+	return
 }
