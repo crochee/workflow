@@ -7,25 +7,13 @@ import (
 )
 
 type recoverTask struct {
-	t Task
+	Task
 }
 
 func SafeTask(t Task) Task {
 	return &recoverTask{
-		t: t,
+		Task: t,
 	}
-}
-
-func (rt *recoverTask) ID() string {
-	return rt.t.ID()
-}
-
-func (rt *recoverTask) Name() string {
-	return rt.t.Name()
-}
-
-func (rt *recoverTask) Policy() Policy {
-	return rt.t.Policy()
 }
 
 func (rt *recoverTask) Commit(ctx context.Context) (err error) {
@@ -40,7 +28,7 @@ func (rt *recoverTask) Commit(ctx context.Context) (err error) {
 			}
 		}
 	}()
-	err = rt.t.Commit(ctx)
+	err = rt.Task.Commit(ctx)
 	return
 }
 
@@ -56,6 +44,6 @@ func (rt *recoverTask) Rollback(ctx context.Context) (err error) {
 			}
 		}
 	}()
-	err = rt.t.Rollback(ctx)
+	err = rt.Task.Rollback(ctx)
 	return
 }
