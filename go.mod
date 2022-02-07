@@ -1,4 +1,4 @@
-module github.com/crochee/taskflow
+module github.com/crochee/workflow
 
 go 1.17
 
