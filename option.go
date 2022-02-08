@@ -10,6 +10,7 @@ type option struct {
 	interval time.Duration
 	notifier Notifier
 	policy   Policy
+	tasks    []Task
 }
 
 type Option func(*option)
@@ -41,5 +42,11 @@ func WithNotifier(notifier Notifier) Option {
 func WithPolicy(policy Policy) Option {
 	return func(o *option) {
 		o.policy = policy
+	}
+}
+
+func WithTasks(tasks ...Task) Option {
+	return func(o *option) {
+		o.tasks = tasks
 	}
 }

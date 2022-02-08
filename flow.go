@@ -3,11 +3,9 @@ package workflow
 import (
 	"context"
 	"encoding/hex"
-	"math"
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -156,24 +154,6 @@ func (s *spawnFlow) Run(ctx context.Context) error {
 	wg.Wait()
 	cancel()
 	return s.err
-}
-
-func newBackOff(attempts int, interval time.Duration) backoff.BackOff {
-	if attempts < 2 || interval <= 0 {
-		return &backoff.ZeroBackOff{}
-	}
-
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = interval
-
-	// calculate the multiplier for the given number of attempts
-	// so that applying the multiplier for the given number of attempts will not exceed 2 times the initial interval
-	// it allows to control the progression along the attempts
-	b.Multiplier = math.Pow(2, 1/float64(attempts-1))
-
-	// according to docs, b.Reset() must be called before using
-	b.Reset()
-	return b
 }
 
 func execute(ctx context.Context, t Task, notifier Notifier, policy Policy, attempts int, interval time.Duration) error {
