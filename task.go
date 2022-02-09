@@ -30,10 +30,7 @@ func (rt *recoverTask) Commit(ctx context.Context) (err error) {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			var ok bool
-			if err, ok = r.(error); !ok {
-				err = fmt.Errorf("found:%v,trace:%s", r, buf)
-			}
+			err = multierr.Append(err, fmt.Errorf("[Recover] found:%v,trace:%s", r, buf))
 		}
 	}()
 	err = rt.Task.Commit(ctx)
@@ -46,20 +43,23 @@ func (rt *recoverTask) Rollback(ctx context.Context) (err error) {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			var ok bool
-			if err, ok = r.(error); !ok {
-				err = fmt.Errorf("found:%v,trace:%s", r, buf)
-			}
+			err = multierr.Append(err, fmt.Errorf("[Recover] found:%v,trace:%s", r, buf))
 		}
 	}()
 	err = rt.Task.Rollback(ctx)
 	return
 }
 
+const (
+	PolicyRetry Policy = 1 + iota
+	PolicyRevert
+)
+
 type retryTask struct {
 	Task
 	attempts int
 	interval time.Duration
+	policy   Policy
 }
 
 func RetryTask(t Task, opts ...Option) Task {
@@ -73,6 +73,7 @@ func RetryTask(t Task, opts ...Option) Task {
 		Task:     t,
 		attempts: o.attempt,
 		interval: o.interval,
+		policy:   o.policy,
 	}
 }
 
@@ -81,7 +82,7 @@ func (rt *retryTask) Commit(ctx context.Context) error {
 	if err == nil {
 		return nil
 	}
-	if rt.Task.Policy() == PolicyRetry {
+	if rt.policy == PolicyRetry {
 		var tempAttempts int
 		backOff := rt.newBackOff() // 退避算法 保证时间间隔为指数级增长
 		currentInterval := 0 * time.Millisecond
@@ -94,8 +95,10 @@ func (rt *retryTask) Commit(ctx context.Context) error {
 					timer.Stop()
 					return err
 				}
-				if err = rt.Task.Commit(ctx); err == nil {
+				if retryErr := rt.Task.Commit(ctx); retryErr == nil {
 					shouldRetry = false
+				} else {
+					err = multierr.Append(err, fmt.Errorf("%d try,%w", tempAttempts+1, retryErr))
 				}
 				if !shouldRetry {
 					timer.Stop()
@@ -134,17 +137,14 @@ func (rt *retryTask) newBackOff() backoff.BackOff {
 }
 
 type parallelTask struct {
-	id     string
-	name   string
-	policy Policy
+	id   string
+	name string
 
-	ch    chan Task
+	executedTasks []Task
+	mutex         sync.Mutex
+
 	tasks []Task
 
-	mux   sync.Mutex
-	stack *stack
-
-	cur     int
 	errOnce sync.Once
 	err     error
 }
@@ -153,19 +153,16 @@ func ParallelTask(opts ...Option) Task {
 	uid := uuid.NewV1()
 	uidStr := hex.EncodeToString(uid[:])
 	o := &option{
-		name:   "spawn-task-" + uidStr,
-		policy: PolicyRetry,
-		tasks:  make([]Task, 0),
+		name:  "parallel-task-" + uidStr,
+		tasks: make([]Task, 0),
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &parallelTask{
-		id:     uidStr,
-		name:   o.name,
-		policy: o.policy,
-		tasks:  o.tasks,
-		stack:  NewStack(),
+		id:    uidStr,
+		name:  o.name,
+		tasks: o.tasks,
 	}
 }
 
@@ -177,21 +174,24 @@ func (s *parallelTask) Name() string {
 	return s.name
 }
 
-func (s *parallelTask) Policy() Policy {
-	return s.policy
-}
-
 func (s *parallelTask) Commit(ctx context.Context) error {
 	newCtx, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 	for _, task := range s.tasks {
 		wg.Add(1)
 		go func(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, t Task) {
-			if err := t.Commit(ctx); err != nil {
-				s.errOnce.Do(func() {
-					s.err = err
-					cancel()
-				})
+			select {
+			case <-ctx.Done():
+			default:
+				if err := t.Commit(ctx); err != nil {
+					s.errOnce.Do(func() {
+						s.err = err
+						cancel()
+					})
+				}
+				s.mutex.Lock()
+				s.executedTasks = append(s.executedTasks, t)
+				s.mutex.Unlock()
 			}
 			wg.Done()
 		}(newCtx, &wg, cancel, task)
@@ -202,13 +202,31 @@ func (s *parallelTask) Commit(ctx context.Context) error {
 }
 
 func (s *parallelTask) Rollback(ctx context.Context) error {
-	panic("implement me")
+	s.err = nil
+	var wg sync.WaitGroup
+	for _, task := range s.executedTasks {
+		wg.Add(1)
+		go func(ctx context.Context, wg *sync.WaitGroup, t Task) {
+			var err error
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+			default:
+				err = t.Rollback(ctx)
+			}
+			s.mutex.Lock()
+			s.err = multierr.Append(s.err, err)
+			s.mutex.Unlock()
+			wg.Done()
+		}(ctx, &wg, task)
+	}
+	wg.Wait()
+	return s.err
 }
 
 type pipelineTask struct {
-	id     string
-	name   string
-	policy Policy
+	id   string
+	name string
 
 	tasks []Task
 	cur   int
@@ -218,18 +236,16 @@ func PipelineTask(opts ...Option) Task {
 	uid := uuid.NewV1()
 	uidStr := hex.EncodeToString(uid[:])
 	o := &option{
-		name:   "pipeline-task-" + uidStr,
-		policy: PolicyRevert,
-		tasks:  make([]Task, 0),
+		name:  "pipeline-task-" + uidStr,
+		tasks: make([]Task, 0),
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &pipelineTask{
-		id:     uidStr,
-		name:   o.name,
-		policy: o.policy,
-		tasks:  o.tasks,
+		id:    uidStr,
+		name:  o.name,
+		tasks: o.tasks,
 	}
 }
 
@@ -239,10 +255,6 @@ func (s *pipelineTask) ID() string {
 
 func (s *pipelineTask) Name() string {
 	return s.name
-}
-
-func (s *pipelineTask) Policy() Policy {
-	return s.policy
 }
 
 func (s *pipelineTask) Commit(ctx context.Context) error {
