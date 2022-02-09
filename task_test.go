@@ -94,3 +94,12 @@ func TestPipelineTask(t *testing.T) {
 	st := PipelineTask(WithTasks(taskFirst{}, taskSecond{}))
 	t.Log(DefaultExecutor(st).Run(ctx))
 }
+
+func TestSimpleTask(t *testing.T) {
+	f := NewFuncTask(UI)
+	t.Log(f.ID(), f.Name())
+}
+
+func UI(ctx context.Context) error {
+	return nil
+}
