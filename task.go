@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/cenkalti/backoff/v4"
-	uuid "github.com/satori/go.uuid"
 	"math"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	uuid "github.com/satori/go.uuid"
+	"go.uber.org/multierr"
 )
 
 type recoverTask struct {
@@ -136,8 +138,8 @@ type parallelTask struct {
 	name   string
 	policy Policy
 
-	ch chan Task
-	//tasks []Task
+	ch    chan Task
+	tasks []Task
 
 	mux   sync.Mutex
 	stack *stack
@@ -157,13 +159,6 @@ func ParallelTask(opts ...Option) Task {
 	}
 	for _, opt := range opts {
 		opt(o)
-	}
-	&parallelTask{
-		id:     uidStr,
-		name:   o.name,
-		policy: o.policy,
-		tasks:  o.tasks,
-		stack:  NewStack(),
 	}
 	return &parallelTask{
 		id:     uidStr,
@@ -261,10 +256,9 @@ func (s *pipelineTask) Commit(ctx context.Context) error {
 }
 
 func (s *pipelineTask) Rollback(ctx context.Context) error {
+	var err error
 	for i := s.cur; i >= 0; i-- {
-		if err := s.tasks[i].Rollback(ctx); err != nil {
-			return err
-		}
+		err = multierr.Append(err, s.tasks[i].Rollback(ctx))
 	}
-	return nil
+	return err
 }
