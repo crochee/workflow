@@ -4,13 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap/buffer"
-	"go.uber.org/zap/zapcore"
 	"io"
 	"math"
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"go.uber.org/zap/buffer"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -224,6 +225,7 @@ func (enc *consoleEncoder) AppendArray(arr zapcore.ArrayMarshaler) error {
 	enc.buf.AppendByte('[')
 	err := arr.MarshalLogArray(enc)
 	enc.buf.AppendByte(']')
+	enc.buf.AppendByte(' ')
 	return err
 }
 
@@ -236,6 +238,7 @@ func (enc *consoleEncoder) AppendObject(obj zapcore.ObjectMarshaler) error {
 	enc.buf.AppendByte('{')
 	err := obj.MarshalLogObject(enc)
 	enc.buf.AppendByte('}')
+	enc.buf.AppendByte(' ')
 	enc.closeOpenNamespaces()
 	enc.openNamespaces = old
 	return err
@@ -244,6 +247,7 @@ func (enc *consoleEncoder) AppendObject(obj zapcore.ObjectMarshaler) error {
 func (enc *consoleEncoder) AppendBool(val bool) {
 	enc.addElementSeparator()
 	enc.buf.AppendBool(val)
+	enc.buf.AppendByte(' ')
 }
 
 func (enc *consoleEncoder) AppendByteString(val []byte) {
@@ -251,6 +255,7 @@ func (enc *consoleEncoder) AppendByteString(val []byte) {
 	enc.buf.AppendByte('"')
 	enc.safeAddByteString(val)
 	enc.buf.AppendByte('"')
+	enc.buf.AppendByte(' ')
 }
 
 // appendComplex appends the encoded form of the provided complex128 value.
@@ -272,6 +277,7 @@ func (enc *consoleEncoder) appendComplex(val complex128, precision int) {
 	enc.buf.AppendFloat(i, precision)
 	enc.buf.AppendByte('i')
 	enc.buf.AppendByte('"')
+	enc.buf.AppendByte(' ')
 }
 
 func (enc *consoleEncoder) AppendDuration(val time.Duration) {
@@ -289,6 +295,7 @@ func (enc *consoleEncoder) AppendDuration(val time.Duration) {
 func (enc *consoleEncoder) AppendInt64(val int64) {
 	enc.addElementSeparator()
 	enc.buf.AppendInt(val)
+	enc.buf.AppendByte(' ')
 }
 
 func (enc *consoleEncoder) AppendReflected(val interface{}) error {
@@ -298,6 +305,7 @@ func (enc *consoleEncoder) AppendReflected(val interface{}) error {
 	}
 	enc.addElementSeparator()
 	_, err = enc.buf.Write(valueBytes)
+	enc.buf.AppendByte(' ')
 	return err
 }
 
@@ -306,6 +314,7 @@ func (enc *consoleEncoder) AppendString(val string) {
 	enc.buf.AppendByte('"')
 	enc.safeAddString(val)
 	enc.buf.AppendByte('"')
+	enc.buf.AppendByte(' ')
 }
 
 func (enc *consoleEncoder) AppendTimeLayout(time time.Time, layout string) {
@@ -313,6 +322,7 @@ func (enc *consoleEncoder) AppendTimeLayout(time time.Time, layout string) {
 	enc.buf.AppendByte('"')
 	enc.buf.AppendTime(time, layout)
 	enc.buf.AppendByte('"')
+	enc.buf.AppendByte(' ')
 }
 
 func (enc *consoleEncoder) AppendTime(val time.Time) {
@@ -330,6 +340,7 @@ func (enc *consoleEncoder) AppendTime(val time.Time) {
 func (enc *consoleEncoder) AppendUint64(val uint64) {
 	enc.addElementSeparator()
 	enc.buf.AppendUint(val)
+	enc.buf.AppendByte(' ')
 }
 
 func (enc *consoleEncoder) AddInt(k string, v int)         { enc.AddInt64(k, int64(v)) }
@@ -445,10 +456,10 @@ func (enc *consoleEncoder) closeOpenNamespaces() {
 
 func (enc *consoleEncoder) addKey(key string) {
 	enc.addElementSeparator()
-	enc.buf.AppendByte('"')
+	//enc.buf.AppendByte('"')
 	enc.safeAddString(key)
-	enc.buf.AppendByte('"')
-	enc.buf.AppendByte(':')
+	//enc.buf.AppendByte('"')
+	enc.buf.AppendByte('=')
 	if enc.spaced {
 		enc.buf.AppendByte(' ')
 	}
@@ -460,7 +471,7 @@ func (enc *consoleEncoder) addElementSeparator() {
 		return
 	}
 	switch enc.buf.Bytes()[last] {
-	case '{', '[', ':', ',', ' ':
+	case '{', '[', ':', ',', ' ', '=':
 		return
 	default:
 		enc.buf.AppendByte(',')
@@ -482,6 +493,7 @@ func (enc *consoleEncoder) appendFloat(val float64, bitSize int) {
 	default:
 		enc.buf.AppendFloat(val, bitSize)
 	}
+	enc.buf.AppendByte(' ')
 }
 
 // safeAddString JSON-escapes a string and appends it to the internal buffer.
@@ -581,9 +593,9 @@ func (enc *consoleEncoder) writeContext(line *buffer.Buffer, extra []zapcore.Fie
 	}
 
 	enc.addSeparatorIfNecessary(line)
-	line.AppendByte('{')
+	//line.AppendByte('{')
 	line.Write(context.buf.Bytes())
-	line.AppendByte('}')
+	//line.AppendByte('}')
 }
 
 func addFields(enc zapcore.ObjectEncoder, fields []zapcore.Field) {

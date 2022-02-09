@@ -2,8 +2,8 @@ package workflow
 
 import (
 	"context"
+
 	"go.uber.org/zap"
-	"time"
 
 	"github.com/crochee/workflow/logger"
 )
@@ -21,6 +21,6 @@ func (d *defaultExecutor) Run(ctx context.Context) error {
 	if err == nil {
 		return nil
 	}
-	logger.From(ctx).Warn("", zap.Duration("time", time.Minute), zap.String("service", "90"), zap.Bools("bools", []bool{true, false}), zap.Error(err))
+	logger.From(ctx).Warn("commit failed", zap.Error(err))
 	return d.t.Rollback(ctx)
 }

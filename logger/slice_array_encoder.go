@@ -1,8 +1,9 @@
 package logger
 
 import (
-	"go.uber.org/zap/zapcore"
 	"time"
+
+	"go.uber.org/zap/zapcore"
 )
 
 // sliceArrayEncoder is an ArrayEncoder backed by a simple []interface{}. Like
