@@ -1,9 +1,5 @@
 package workflow
 
-import (
-	"fmt"
-)
-
 /// reference github.com/mostafa-asg/dag
 
 // Dag is directed acyclic graph
@@ -40,28 +36,29 @@ type Dag struct {
 //}
 
 type Vertex struct {
-	Flow      Flow
-	Condition Condition
-	Prev      []*Vertex
-	Next      []*Vertex
+	Task Task
+	//Condition Condition
+	Prev []*Vertex
+	Next []*Vertex
 }
 
-func NewVertex(flow Flow) *Vertex {
-	return &Vertex{
-		Flow: flow,
-	}
-}
-
-func (v *Vertex) AddEdge(to *Vertex) {
-	v.Next = append(v.Next, to)
-	to.Prev = append(to.Prev, v)
-}
-
-func (v *Vertex) AddCondition(condition Condition) {
-	v.Condition = condition
-}
-
-func (v *Vertex) String() string {
-	return fmt.Sprintf("name: %s - Children: %d - Value: %v\n",
-		v.Flow.Name(), len(v.Next), v.Condition)
-}
+//
+//func NewVertex(flow Flow) *Vertex {
+//	return &Vertex{
+//		Flow: flow,
+//	}
+//}
+//
+//func (v *Vertex) AddEdge(to *Vertex) {
+//	v.Next = append(v.Next, to)
+//	to.Prev = append(to.Prev, v)
+//}
+//
+//func (v *Vertex) AddCondition(condition Condition) {
+//	v.Condition = condition
+//}
+//
+//func (v *Vertex) String() string {
+//	return fmt.Sprintf("name: %s - Children: %d - Value: %v\n",
+//		v.Flow.Name(), len(v.Next), v.Condition)
+//}
