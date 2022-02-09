@@ -30,7 +30,7 @@ func (rt *recoverTask) Commit(ctx context.Context) (err error) {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			err = multierr.Append(err, fmt.Errorf("[Recover] found:%v,trace:%s", r, buf))
+			err = multierr.Append(err, fmt.Errorf("[Recover] found:%v,trace:\n%s", r, buf))
 		}
 	}()
 	err = rt.Task.Commit(ctx)
@@ -43,7 +43,7 @@ func (rt *recoverTask) Rollback(ctx context.Context) (err error) {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			err = multierr.Append(err, fmt.Errorf("[Recover] found:%v,trace:%s", r, buf))
+			err = multierr.Append(err, fmt.Errorf("[Recover] found:%v,trace:\n%s", r, buf))
 		}
 	}()
 	err = rt.Task.Rollback(ctx)

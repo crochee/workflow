@@ -72,8 +72,9 @@ func (t taskPanic) Rollback(ctx context.Context) error {
 }
 
 func TestSafeTask(t *testing.T) {
+	ctx := logger.With(context.Background(), logger.NewLogger())
 	st := SafeTask(taskPanic{})
-	t.Log(DefaultExecutor(st).Run(context.Background()))
+	t.Log(DefaultExecutor(st).Run(ctx))
 }
 
 func TestRetryTask(t *testing.T) {
@@ -83,11 +84,13 @@ func TestRetryTask(t *testing.T) {
 }
 
 func TestParallelTask(t *testing.T) {
+	ctx := logger.With(context.Background(), logger.NewLogger())
 	st := ParallelTask(WithTasks(taskFirst{}, taskSecond{}))
-	t.Log(DefaultExecutor(st).Run(context.Background()))
+	t.Log(DefaultExecutor(st).Run(ctx))
 }
 
 func TestPipelineTask(t *testing.T) {
+	ctx := logger.With(context.Background(), logger.NewLogger())
 	st := PipelineTask(WithTasks(taskFirst{}, taskSecond{}))
-	t.Log(DefaultExecutor(st).Run(context.Background()))
+	t.Log(DefaultExecutor(st).Run(ctx))
 }
