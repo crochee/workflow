@@ -12,7 +12,7 @@ type defaultExecutor struct {
 	t Task
 }
 
-func DefaultExecutor(task Task) Executor {
+func NewExecutor(task Task) Executor {
 	return &defaultExecutor{t: task}
 }
 

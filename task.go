@@ -2,9 +2,11 @@ package workflow
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"math"
+	"reflect"
 	"runtime"
 	"sync"
 	"time"
@@ -13,6 +15,30 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/multierr"
 )
+
+func NewFuncTask(f func(context.Context) error) Task {
+	return FuncTask(f)
+}
+
+type FuncTask func(context.Context) error
+
+func (f FuncTask) ID() string {
+	h := md5.New()
+	_, _ = fmt.Fprint(h, f.Name())
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func (f FuncTask) Name() string {
+	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+}
+
+func (f FuncTask) Commit(ctx context.Context) error {
+	return f(ctx)
+}
+
+func (f FuncTask) Rollback(context.Context) error {
+	return nil
+}
 
 type recoverTask struct {
 	Task
