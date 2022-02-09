@@ -31,18 +31,6 @@ type (
 		Next(t time.Time) time.Time
 	}
 
-	Flow interface {
-		ID() string
-		Name() string
-		Add(tasks ...Task) Flow
-		ListTask() []Task
-		Run(ctx context.Context) error
-	}
-
-	Condition interface {
-		NextFlow() []string
-	}
-
 	Storage interface {
 	}
 
@@ -57,18 +45,10 @@ type (
 	}
 )
 
-type (
-	FlowRelation struct {
-		A    Flow
-		B    Flow
-		Meta map[string]interface{}
-	}
-
-	JobRelation struct {
-		A    Task
-		B    Task
-		Meta map[string]interface{}
-	}
-)
+type JobRelation struct {
+	A    Task
+	B    Task
+	Meta map[string]interface{}
+}
 
 type Policy uint8
