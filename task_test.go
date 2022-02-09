@@ -20,12 +20,12 @@ func (t taskFirst) Name() string {
 	return "first"
 }
 
-func (t taskFirst) Commit(ctx context.Context) error {
+func (t taskFirst) Commit(context.Context) error {
 	log.Println("first commit")
 	return nil
 }
 
-func (t taskFirst) Rollback(ctx context.Context) error {
+func (t taskFirst) Rollback(context.Context) error {
 	log.Println("first rollback")
 	return nil
 }
@@ -41,11 +41,11 @@ func (t taskSecond) Name() string {
 	return "second"
 }
 
-func (t taskSecond) Commit(ctx context.Context) error {
+func (t taskSecond) Commit(context.Context) error {
 	return errors.New("second commit failed")
 }
 
-func (t taskSecond) Rollback(ctx context.Context) error {
+func (t taskSecond) Rollback(context.Context) error {
 	log.Println("second rollback")
 	return nil
 }
@@ -61,12 +61,12 @@ func (t taskPanic) Name() string {
 	return "panic"
 }
 
-func (t taskPanic) Commit(ctx context.Context) error {
+func (t taskPanic) Commit(context.Context) error {
 	panic("3 panic commit")
 	return nil
 }
 
-func (t taskPanic) Rollback(ctx context.Context) error {
+func (t taskPanic) Rollback(context.Context) error {
 	panic("3 panic rollback")
 	return nil
 }
@@ -74,25 +74,25 @@ func (t taskPanic) Rollback(ctx context.Context) error {
 func TestSafeTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.NewLogger())
 	st := SafeTask(taskPanic{})
-	t.Log(DefaultExecutor(st).Run(ctx))
+	t.Log(NewExecutor(st).Run(ctx))
 }
 
 func TestRetryTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.NewLogger())
-	t.Log(DefaultExecutor(RetryTask(taskSecond{}, WithAttempt(3))).Run(ctx))
-	t.Log(DefaultExecutor(RetryTask(taskSecond{}, WithPolicy(PolicyRevert), WithAttempt(3))).Run(ctx))
+	t.Log(NewExecutor(RetryTask(taskSecond{}, WithAttempt(3))).Run(ctx))
+	t.Log(NewExecutor(RetryTask(taskSecond{}, WithPolicy(PolicyRevert), WithAttempt(3))).Run(ctx))
 }
 
 func TestParallelTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.NewLogger())
 	st := ParallelTask(WithTasks(taskFirst{}, taskSecond{}))
-	t.Log(DefaultExecutor(st).Run(ctx))
+	t.Log(NewExecutor(st).Run(ctx))
 }
 
 func TestPipelineTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.NewLogger())
 	st := PipelineTask(WithTasks(taskFirst{}, taskSecond{}))
-	t.Log(DefaultExecutor(st).Run(ctx))
+	t.Log(NewExecutor(st).Run(ctx))
 }
 
 func TestSimpleTask(t *testing.T) {
@@ -100,6 +100,6 @@ func TestSimpleTask(t *testing.T) {
 	t.Log(f.ID(), f.Name())
 }
 
-func UI(ctx context.Context) error {
+func UI(context.Context) error {
 	return nil
 }
