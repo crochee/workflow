@@ -10,9 +10,12 @@ type (
 	Task interface {
 		ID() string
 		Name() string
-		Policy() Policy
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
+	}
+
+	Executor interface {
+		Run(ctx context.Context) error
 	}
 
 	Notifier interface {
@@ -69,9 +72,3 @@ type (
 )
 
 type Policy uint8
-
-const (
-	PolicyRetry Policy = 1 + iota
-	PolicyRevert
-	PolicyRevertAll
-)

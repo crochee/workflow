@@ -2,7 +2,7 @@ package workflow
 
 type element struct {
 	next  *element
-	value *Vertex
+	value interface{}
 }
 
 type stack struct {
@@ -14,13 +14,13 @@ func NewStack() *stack {
 	return &stack{}
 }
 
-func (s *stack) Push(vertex *Vertex) {
-	entry := &element{next: s.top, value: vertex}
+func (s *stack) Push(value interface{}) {
+	entry := &element{next: s.top, value: value}
 	s.top = entry
 	s.length++
 }
 
-func (s *stack) Pop() *Vertex {
+func (s *stack) Pop() interface{} {
 	if s.length == 0 {
 		return nil
 	}
@@ -30,7 +30,7 @@ func (s *stack) Pop() *Vertex {
 	return entry.value
 }
 
-func (s *stack) Top() *Vertex {
+func (s *stack) Top() interface{} {
 	if s.length == 0 {
 		return nil
 	}
