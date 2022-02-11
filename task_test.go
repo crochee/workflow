@@ -6,7 +6,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/crochee/workflow/logger"
+	"github.com/crochee/lirity/logger"
 )
 
 type taskFirst struct {
@@ -72,25 +72,25 @@ func (t taskPanic) Rollback(context.Context) error {
 }
 
 func TestSafeTask(t *testing.T) {
-	ctx := logger.With(context.Background(), logger.NewLogger())
+	ctx := logger.With(context.Background(), logger.New())
 	st := SafeTask(taskPanic{})
 	t.Log(NewExecutor(st).Run(ctx))
 }
 
 func TestRetryTask(t *testing.T) {
-	ctx := logger.With(context.Background(), logger.NewLogger())
+	ctx := logger.With(context.Background(), logger.New())
 	t.Log(NewExecutor(RetryTask(taskSecond{}, WithAttempt(3))).Run(ctx))
 	t.Log(NewExecutor(RetryTask(taskSecond{}, WithPolicy(PolicyRevert), WithAttempt(3))).Run(ctx))
 }
 
 func TestParallelTask(t *testing.T) {
-	ctx := logger.With(context.Background(), logger.NewLogger())
+	ctx := logger.With(context.Background(), logger.New())
 	st := ParallelTask(WithTasks(taskFirst{}, taskSecond{}))
 	t.Log(NewExecutor(st).Run(ctx))
 }
 
 func TestPipelineTask(t *testing.T) {
-	ctx := logger.With(context.Background(), logger.NewLogger())
+	ctx := logger.With(context.Background(), logger.New())
 	st := PipelineTask(WithTasks(taskFirst{}, taskSecond{}))
 	t.Log(NewExecutor(st).Run(ctx))
 }
