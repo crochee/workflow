@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/crochee/workflow/logger"
+	"github.com/crochee/lirity/logger"
 )
 
 type defaultExecutor struct {
