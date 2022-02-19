@@ -2,6 +2,11 @@ package workflow
 
 import "context"
 
+type Notifier interface {
+	Event(ctx context.Context, format string, v ...interface{})
+	Notify(ctx context.Context, name string, progress float32)
+}
+
 type NoneNotify struct {
 }
 
