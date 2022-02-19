@@ -74,7 +74,7 @@ func (t taskPanic) Rollback(context.Context) error {
 func TestSafeTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.New())
 	st := SafeTask(taskPanic{})
-	t.Log(Executor(ctx, st))
+	t.Log(Execute(ctx, st))
 }
 
 func TestSimpleTask(t *testing.T) {

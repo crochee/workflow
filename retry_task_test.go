@@ -9,6 +9,6 @@ import (
 
 func TestRetryTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.New())
-	t.Log(Executor(ctx, RetryTask(taskSecond{}, WithAttempt(3))))
-	t.Log(Executor(ctx, RetryTask(taskSecond{}, WithPolicy(PolicyRevert), WithAttempt(3))))
+	t.Log(Execute(ctx, RetryTask(taskSecond{}, WithAttempt(3))))
+	t.Log(Execute(ctx, RetryTask(taskSecond{}, WithPolicy(PolicyRevert), WithAttempt(3))))
 }

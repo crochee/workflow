@@ -7,9 +7,17 @@ import (
 	"go.uber.org/zap"
 )
 
+type Executor interface {
+	Execute(ctx context.Context, task Task) error
+}
+
 type FuncExecutor func(ctx context.Context, task Task) error
 
-func Executor(ctx context.Context, task Task) error {
+func (f FuncExecutor) Execute(ctx context.Context, task Task) error {
+	return f(ctx, task)
+}
+
+func Execute(ctx context.Context, task Task) error {
 	err := task.Commit(ctx)
 	if err == nil {
 		return nil

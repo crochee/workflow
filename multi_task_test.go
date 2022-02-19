@@ -10,11 +10,11 @@ import (
 func TestParallelTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.New())
 	st := ParallelTask(WithTasks(taskFirst{}, taskSecond{}))
-	t.Log(Executor(ctx, st))
+	t.Log(Execute(ctx, st))
 }
 
 func TestPipelineTask(t *testing.T) {
 	ctx := logger.With(context.Background(), logger.New())
 	st := PipelineTask(WithTasks(taskFirst{}, taskSecond{}))
-	t.Log(Executor(ctx, st))
+	t.Log(Execute(ctx, st))
 }
