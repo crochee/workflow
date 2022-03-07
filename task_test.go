@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"testing"
+	"time"
 
 	"github.com/crochee/lirity/logger"
 )
@@ -20,12 +21,32 @@ func (t taskFirst) Name() string {
 	return "first"
 }
 
-func (t taskFirst) Commit(context.Context) error {
+func (t taskFirst) State() (State, error) {
+	return Success, nil
+}
+
+func (t taskFirst) Description() string {
+	return ""
+}
+
+func (t taskFirst) CreateTime() time.Time {
+	return time.Now()
+}
+
+func (t taskFirst) UpdateTime() time.Time {
+	return time.Now()
+}
+
+func (t taskFirst) Meta() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
+func (t taskFirst) Commit(ctx context.Context, opts ...TaskOption) error {
 	log.Println("first commit")
 	return nil
 }
 
-func (t taskFirst) Rollback(context.Context) error {
+func (t taskFirst) Rollback(ctx context.Context, opts ...TaskOption) error {
 	log.Println("first rollback")
 	return nil
 }
@@ -41,11 +62,31 @@ func (t taskSecond) Name() string {
 	return "second"
 }
 
-func (t taskSecond) Commit(context.Context) error {
+func (t taskSecond) State() (State, error) {
+	return Success, nil
+}
+
+func (t taskSecond) Description() string {
+	return ""
+}
+
+func (t taskSecond) CreateTime() time.Time {
+	return time.Now()
+}
+
+func (t taskSecond) UpdateTime() time.Time {
+	return time.Now()
+}
+
+func (t taskSecond) Meta() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
+func (t taskSecond) Commit(ctx context.Context, opts ...TaskOption) error {
 	return errors.New("second commit failed")
 }
 
-func (t taskSecond) Rollback(context.Context) error {
+func (t taskSecond) Rollback(ctx context.Context, opts ...TaskOption) error {
 	log.Println("second rollback")
 	return nil
 }
@@ -61,12 +102,32 @@ func (t taskPanic) Name() string {
 	return "panic"
 }
 
-func (t taskPanic) Commit(context.Context) error {
+func (t taskPanic) State() (State, error) {
+	return Success, nil
+}
+
+func (t taskPanic) Description() string {
+	return ""
+}
+
+func (t taskPanic) CreateTime() time.Time {
+	return time.Now()
+}
+
+func (t taskPanic) UpdateTime() time.Time {
+	return time.Now()
+}
+
+func (t taskPanic) Meta() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
+func (t taskPanic) Commit(ctx context.Context, opts ...TaskOption) error {
 	panic("3 panic commit")
 	return nil
 }
 
-func (t taskPanic) Rollback(context.Context) error {
+func (t taskPanic) Rollback(ctx context.Context, opts ...TaskOption) error {
 	panic("3 panic rollback")
 	return nil
 }
