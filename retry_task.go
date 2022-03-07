@@ -65,8 +65,8 @@ func RetryTask(t Task, opts ...RetryOption) Task {
 	}
 }
 
-func (rt *retryTask) Commit(ctx context.Context) error {
-	err := rt.Task.Commit(ctx)
+func (rt *retryTask) Commit(ctx context.Context, opts ...TaskOption) error {
+	err := rt.Task.Commit(ctx, opts...)
 	if err == nil {
 		return nil
 	}
@@ -83,7 +83,7 @@ func (rt *retryTask) Commit(ctx context.Context) error {
 					timer.Stop()
 					return err
 				}
-				if retryErr := rt.Task.Commit(ctx); retryErr == nil {
+				if retryErr := rt.Task.Commit(ctx, opts...); retryErr == nil {
 					shouldRetry = false
 				} else {
 					err = multierr.Append(err, fmt.Errorf("%d try,%w", tempAttempts+1, retryErr))
