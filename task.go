@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
-	"time"
 
 	"go.uber.org/multierr"
 )
@@ -22,49 +21,42 @@ const (
 	Error   State = "error"
 )
 
-type taskOption struct {
+type option struct {
 	name        string
 	description string
 	meta        map[string]interface{}
 	callbacks   []Callback
-	nowFunc     func() time.Time
 	tasks       []Task
 }
 
-type TaskOption func(*taskOption)
+type Option func(*option)
 
-func WithName(name string) TaskOption {
-	return func(option *taskOption) {
+func WithName(name string) Option {
+	return func(option *option) {
 		option.name = name
 	}
 }
 
-func WithDescription(description string) TaskOption {
-	return func(option *taskOption) {
+func WithDescription(description string) Option {
+	return func(option *option) {
 		option.description = description
 	}
 }
 
-func WithMeta(meta map[string]interface{}) TaskOption {
-	return func(option *taskOption) {
+func WithMeta(meta map[string]interface{}) Option {
+	return func(option *option) {
 		option.meta = meta
 	}
 }
 
-func WithCallbacks(callbacks ...Callback) TaskOption {
-	return func(option *taskOption) {
+func WithCallbacks(callbacks ...Callback) Option {
+	return func(option *option) {
 		option.callbacks = callbacks
 	}
 }
 
-func WithNowFunc(nowFunc func() time.Time) TaskOption {
-	return func(option *taskOption) {
-		option.nowFunc = nowFunc
-	}
-}
-
-func WithTasks(tasks ...Task) TaskOption {
-	return func(option *taskOption) {
+func WithTasks(tasks ...Task) Option {
+	return func(option *option) {
 		option.tasks = tasks
 	}
 }
@@ -75,22 +67,19 @@ type Task interface {
 	Name() string
 	State() (State, error)
 	Description() string
-	CreateTime() time.Time
-	UpdateTime() time.Time
 	Meta() map[string]interface{}
 
-	Commit(ctx context.Context, opts ...TaskOption) error
-	Rollback(ctx context.Context, opts ...TaskOption) error
+	Commit(ctx context.Context, opts ...Option) error
+	Rollback(ctx context.Context, opts ...Option) error
 }
 
-func NewFuncTask(f func(context.Context) error, opts ...TaskOption) Task {
+func NewFuncTask(f func(context.Context) error, opts ...Option) Task {
 	funcName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-	o := &taskOption{
+	o := &option{
 		name:        funcName,
 		description: "it's a simple function task",
 		meta:        map[string]interface{}{},
 		callbacks:   make([]Callback, 0),
-		nowFunc:     time.Now,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -99,17 +88,13 @@ func NewFuncTask(f func(context.Context) error, opts ...TaskOption) Task {
 	h := md5.New()
 	_, _ = fmt.Fprint(h, funcName)
 	id := hex.EncodeToString(h.Sum(nil))
-	now := o.nowFunc()
 	return &funcTask{
 		id:          id,
 		name:        o.name,
 		state:       Ready,
 		description: o.description,
-		createTime:  now,
-		updateTime:  now,
 		meta:        o.meta,
 		callbacks:   o.callbacks,
-		now:         o.nowFunc,
 		f:           f,
 		err:         nil,
 		rwMutex:     sync.RWMutex{},
@@ -121,11 +106,8 @@ type funcTask struct {
 	name        string
 	state       State
 	description string
-	createTime  time.Time
-	updateTime  time.Time
 	meta        map[string]interface{}
 	callbacks   []Callback
-	now         func() time.Time
 
 	f       func(context.Context) error
 	err     error
@@ -150,20 +132,12 @@ func (f *funcTask) Description() string {
 	return f.description
 }
 
-func (f *funcTask) CreateTime() time.Time {
-	return f.createTime
-}
-
-func (f *funcTask) UpdateTime() time.Time {
-	return f.createTime
-}
-
 func (f *funcTask) Meta() map[string]interface{} {
 	return f.meta
 }
 
-func (f *funcTask) Commit(ctx context.Context, opts ...TaskOption) error {
-	o := &taskOption{}
+func (f *funcTask) Commit(ctx context.Context, opts ...Option) error {
+	o := &option{}
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -171,7 +145,6 @@ func (f *funcTask) Commit(ctx context.Context, opts ...TaskOption) error {
 
 	f.rwMutex.Lock()
 	f.state = Running
-	f.updateTime = f.now()
 	f.rwMutex.Unlock()
 
 	for _, callback := range callbacks {
@@ -187,7 +160,6 @@ func (f *funcTask) Commit(ctx context.Context, opts ...TaskOption) error {
 	} else {
 		f.state = Success
 	}
-	f.updateTime = f.now()
 	f.rwMutex.Unlock()
 
 	for _, callback := range callbacks {
@@ -196,7 +168,7 @@ func (f *funcTask) Commit(ctx context.Context, opts ...TaskOption) error {
 	return err
 }
 
-func (f *funcTask) Rollback(context.Context, ...TaskOption) error {
+func (f *funcTask) Rollback(context.Context, ...Option) error {
 	return nil
 }
 
@@ -210,7 +182,7 @@ func SafeTask(t Task) Task {
 	}
 }
 
-func (rt *recoverTask) Commit(ctx context.Context, opts ...TaskOption) (err error) {
+func (rt *recoverTask) Commit(ctx context.Context, opts ...Option) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			const size = 64 << 10
@@ -223,7 +195,7 @@ func (rt *recoverTask) Commit(ctx context.Context, opts ...TaskOption) (err erro
 	return
 }
 
-func (rt *recoverTask) Rollback(ctx context.Context, opts ...TaskOption) (err error) {
+func (rt *recoverTask) Rollback(ctx context.Context, opts ...Option) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			const size = 64 << 10

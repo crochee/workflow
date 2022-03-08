@@ -65,7 +65,7 @@ func RetryTask(t Task, opts ...RetryOption) Task {
 	}
 }
 
-func (rt *retryTask) Commit(ctx context.Context, opts ...TaskOption) error {
+func (rt *retryTask) Commit(ctx context.Context, opts ...Option) error {
 	err := rt.Task.Commit(ctx, opts...)
 	if err == nil {
 		return nil

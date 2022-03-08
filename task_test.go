@@ -41,12 +41,12 @@ func (t taskFirst) Meta() map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func (t taskFirst) Commit(ctx context.Context, opts ...TaskOption) error {
+func (t taskFirst) Commit(ctx context.Context, opts ...Option) error {
 	log.Println("first commit")
 	return nil
 }
 
-func (t taskFirst) Rollback(ctx context.Context, opts ...TaskOption) error {
+func (t taskFirst) Rollback(ctx context.Context, opts ...Option) error {
 	log.Println("first rollback")
 	return nil
 }
@@ -82,11 +82,11 @@ func (t taskSecond) Meta() map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func (t taskSecond) Commit(ctx context.Context, opts ...TaskOption) error {
+func (t taskSecond) Commit(ctx context.Context, opts ...Option) error {
 	return errors.New("second commit failed")
 }
 
-func (t taskSecond) Rollback(ctx context.Context, opts ...TaskOption) error {
+func (t taskSecond) Rollback(ctx context.Context, opts ...Option) error {
 	log.Println("second rollback")
 	return nil
 }
@@ -122,12 +122,12 @@ func (t taskPanic) Meta() map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func (t taskPanic) Commit(ctx context.Context, opts ...TaskOption) error {
+func (t taskPanic) Commit(ctx context.Context, opts ...Option) error {
 	panic("3 panic commit")
 	return nil
 }
 
-func (t taskPanic) Rollback(ctx context.Context, opts ...TaskOption) error {
+func (t taskPanic) Rollback(ctx context.Context, opts ...Option) error {
 	panic("3 panic rollback")
 	return nil
 }

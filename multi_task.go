@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"sync"
-	"time"
 
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/multierr"
@@ -15,11 +14,8 @@ type parallelTask struct {
 	name        string
 	state       State
 	description string
-	createTime  time.Time
-	updateTime  time.Time
 	meta        map[string]interface{}
 	callbacks   []Callback
-	now         func() time.Time
 
 	tasks         []Task
 	executedTasks []Task
@@ -28,31 +24,26 @@ type parallelTask struct {
 	err           error
 }
 
-func ParallelTask(opts ...TaskOption) Task {
+func ParallelTask(opts ...Option) Task {
 	uid := uuid.NewV1()
 	uidStr := hex.EncodeToString(uid[:])
-	o := &taskOption{
+	o := &option{
 		name:        "parallel-task-" + uidStr,
 		description: "it's a parallel task",
 		meta:        map[string]interface{}{},
 		callbacks:   make([]Callback, 0),
-		nowFunc:     time.Now,
 		tasks:       make([]Task, 0),
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
-	now := o.nowFunc()
 	return &parallelTask{
 		id:            uidStr,
 		name:          o.name,
 		state:         Ready,
 		description:   o.description,
-		createTime:    now,
-		updateTime:    now,
 		meta:          o.meta,
 		callbacks:     o.callbacks,
-		now:           o.nowFunc,
 		tasks:         o.tasks,
 		executedTasks: nil,
 		rwMutex:       sync.RWMutex{},
@@ -79,20 +70,12 @@ func (p *parallelTask) Description() string {
 	return p.description
 }
 
-func (p *parallelTask) CreateTime() time.Time {
-	return p.createTime
-}
-
-func (p *parallelTask) UpdateTime() time.Time {
-	return p.createTime
-}
-
 func (p *parallelTask) Meta() map[string]interface{} {
 	return p.meta
 }
 
-func (p *parallelTask) Commit(ctx context.Context, opts ...TaskOption) error {
-	o := &taskOption{}
+func (p *parallelTask) Commit(ctx context.Context, opts ...Option) error {
+	o := &option{}
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -100,7 +83,6 @@ func (p *parallelTask) Commit(ctx context.Context, opts ...TaskOption) error {
 
 	p.rwMutex.Lock()
 	p.state = Running
-	p.updateTime = p.now()
 	p.rwMutex.Unlock()
 
 	for _, callback := range callbacks {
@@ -139,7 +121,6 @@ func (p *parallelTask) Commit(ctx context.Context, opts ...TaskOption) error {
 	} else {
 		p.state = Success
 	}
-	p.updateTime = p.now()
 	p.rwMutex.Unlock()
 
 	for _, callback := range callbacks {
@@ -150,7 +131,7 @@ func (p *parallelTask) Commit(ctx context.Context, opts ...TaskOption) error {
 	return p.err
 }
 
-func (p *parallelTask) Rollback(ctx context.Context, opts ...TaskOption) error {
+func (p *parallelTask) Rollback(ctx context.Context, opts ...Option) error {
 	p.rwMutex.Lock()
 	p.err = nil
 	p.rwMutex.Unlock()
@@ -179,10 +160,9 @@ func (p *parallelTask) Rollback(ctx context.Context, opts ...TaskOption) error {
 
 		p.rwMutex.Lock()
 		p.state = Error
-		p.updateTime = p.now()
 		p.rwMutex.Unlock()
 
-		o := &taskOption{}
+		o := &option{}
 		for _, opt := range opts {
 			opt(o)
 		}
@@ -203,11 +183,8 @@ type pipelineTask struct {
 	name        string
 	state       State
 	description string
-	createTime  time.Time
-	updateTime  time.Time
 	meta        map[string]interface{}
 	callbacks   []Callback
-	now         func() time.Time
 
 	tasks   []Task
 	cur     int
@@ -215,31 +192,26 @@ type pipelineTask struct {
 	rwMutex sync.RWMutex
 }
 
-func PipelineTask(opts ...TaskOption) Task {
+func PipelineTask(opts ...Option) Task {
 	uid := uuid.NewV1()
 	uidStr := hex.EncodeToString(uid[:])
-	o := &taskOption{
+	o := &option{
 		name:        "pipeline-task-" + uidStr,
 		description: "it's a pipeline task",
 		meta:        map[string]interface{}{},
 		callbacks:   make([]Callback, 0),
-		nowFunc:     time.Now,
 		tasks:       make([]Task, 0),
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
-	now := o.nowFunc()
 	return &pipelineTask{
 		id:          uidStr,
 		name:        o.name,
 		state:       Ready,
 		description: o.description,
-		createTime:  now,
-		updateTime:  now,
 		meta:        o.meta,
 		callbacks:   o.callbacks,
-		now:         o.nowFunc,
 		tasks:       o.tasks,
 		cur:         0,
 		err:         nil,
@@ -265,20 +237,12 @@ func (s *pipelineTask) Description() string {
 	return s.description
 }
 
-func (s *pipelineTask) CreateTime() time.Time {
-	return s.createTime
-}
-
-func (s *pipelineTask) UpdateTime() time.Time {
-	return s.createTime
-}
-
 func (s *pipelineTask) Meta() map[string]interface{} {
 	return s.meta
 }
 
-func (s *pipelineTask) Commit(ctx context.Context, opts ...TaskOption) error {
-	o := &taskOption{}
+func (s *pipelineTask) Commit(ctx context.Context, opts ...Option) error {
+	o := &option{}
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -286,7 +250,6 @@ func (s *pipelineTask) Commit(ctx context.Context, opts ...TaskOption) error {
 
 	s.rwMutex.Lock()
 	s.state = Running
-	s.updateTime = s.now()
 	s.rwMutex.Unlock()
 
 	for _, callback := range callbacks {
@@ -307,7 +270,6 @@ func (s *pipelineTask) Commit(ctx context.Context, opts ...TaskOption) error {
 	} else {
 		s.state = Success
 	}
-	s.updateTime = s.now()
 	s.rwMutex.Unlock()
 
 	for _, callback := range callbacks {
@@ -316,7 +278,7 @@ func (s *pipelineTask) Commit(ctx context.Context, opts ...TaskOption) error {
 	return err
 }
 
-func (s *pipelineTask) Rollback(ctx context.Context, opts ...TaskOption) error {
+func (s *pipelineTask) Rollback(ctx context.Context, opts ...Option) error {
 	var err error
 	for i := s.cur; i >= 0; i-- {
 		err = multierr.Append(err, s.tasks[i].Rollback(ctx))
@@ -324,10 +286,9 @@ func (s *pipelineTask) Rollback(ctx context.Context, opts ...TaskOption) error {
 	if err != nil {
 		s.rwMutex.Lock()
 		s.state = Error
-		s.updateTime = s.now()
 		s.rwMutex.Unlock()
 
-		o := &taskOption{}
+		o := &option{}
 		for _, opt := range opts {
 			opt(o)
 		}
