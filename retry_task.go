@@ -7,41 +7,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"go.uber.org/multierr"
 )
-
-type Policy uint8
-
-const (
-	PolicyRetry Policy = 1 + iota
-	PolicyRevert
-)
-
-type retryOption struct {
-	attempts int
-	interval time.Duration
-	policy   Policy
-}
-
-type RetryOption func(*retryOption)
-
-func WithAttempt(attempt int) RetryOption {
-	return func(o *retryOption) {
-		o.attempts = attempt
-	}
-}
-
-func WithInterval(interval time.Duration) RetryOption {
-	return func(o *retryOption) {
-		o.interval = interval
-	}
-}
-
-func WithPolicy(policy Policy) RetryOption {
-	return func(o *retryOption) {
-		o.policy = policy
-	}
-}
 
 type retryTask struct {
 	Task
@@ -51,25 +17,30 @@ type retryTask struct {
 }
 
 func RetryTask(t Task, opts ...RetryOption) Task {
-	o := &retryOption{
-		policy: PolicyRetry,
+	opt := &retryOptions{
+		attempts: defaultAttempt,
+		interval: defaultInterval,
+		policy:   PolicyRetry,
 	}
-	for _, opt := range opts {
-		opt(o)
+	for _, o := range opts {
+		o.apply(opt)
 	}
+	name := t.Name()
+	t.SetName(fmt.Sprintf("retry-%s", name))
 	return &retryTask{
 		Task:     t,
-		attempts: o.attempts,
-		interval: o.interval,
-		policy:   o.policy,
+		attempts: opt.attempts,
+		interval: opt.interval,
+		policy:   opt.policy,
 	}
 }
 
-func (rt *retryTask) Commit(ctx context.Context, opts ...TaskOption) error {
-	err := rt.Task.Commit(ctx, opts...)
+func (rt *retryTask) Execute(ctx context.Context, input interface{}, callbacks ...Callback) error {
+	err := rt.Task.Execute(ctx, input, callbacks...)
 	if err == nil {
 		return nil
 	}
+	rt.Task.SetState(Running)
 	if rt.policy == PolicyRetry {
 		var tempAttempts int
 		backOff := rt.newBackOff() // 退避算法 保证时间间隔为指数级增长
@@ -81,16 +52,18 @@ func (rt *retryTask) Commit(ctx context.Context, opts ...TaskOption) error {
 				shouldRetry := tempAttempts < rt.attempts
 				if !shouldRetry {
 					timer.Stop()
-					return err
+					rt.Task.AddError(err)
+					return rt.Task.Error()
 				}
-				if retryErr := rt.Task.Commit(ctx, opts...); retryErr == nil {
+				if retryErr := rt.Task.Execute(ctx, input, callbacks...); retryErr == nil {
 					shouldRetry = false
 				} else {
-					err = multierr.Append(err, fmt.Errorf("%d try,%w", tempAttempts+1, retryErr))
+					rt.Task.SetState(Running)
 				}
 				if !shouldRetry {
 					timer.Stop()
-					return err
+					rt.Task.AddError(err)
+					return rt.Task.Error()
 				}
 				// 计算下一次
 				currentInterval = backOff.NextBackOff()
@@ -103,7 +76,8 @@ func (rt *retryTask) Commit(ctx context.Context, opts ...TaskOption) error {
 			}
 		}
 	}
-	return err
+	rt.Task.AddError(err)
+	return rt.Task.Error()
 }
 
 func (rt *retryTask) newBackOff() backoff.BackOff {

@@ -20,7 +20,7 @@ type timeWheel struct {
 	timer             map[string]int
 	cur               int             // 当前指针指向哪一个槽
 	slotSum           int             // 槽数量
-	callback          FuncExecutor    // 定时器回调函数
+	callback          []Callback      // 定时器回调函数
 	addTaskChannel    chan *taskEntry // 新增任务channel
 	removeTaskChannel chan string     // 删除任务channel
 	stopChannel       chan struct{}   // 停止定时器channel
@@ -155,11 +155,17 @@ func (tw *timeWheel) scanAndRunTask(ctx context.Context, l *list.List) {
 			e = e.Next()
 			continue
 		}
-		go tw.callback(ctx, task.Task)
+		go tw.callbacks(ctx, task.Task)
 		next := e.Next()
 		l.Remove(e)
 		delete(tw.timer, task.ID())
 		e = next
+	}
+}
+
+func (tw *timeWheel) callbacks(ctx context.Context, task Task) {
+	for _, callback := range tw.callback {
+		callback.Trigger(ctx, task, nil, nil)
 	}
 }
 
