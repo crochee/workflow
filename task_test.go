@@ -3,11 +3,9 @@ package workflow
 import (
 	"context"
 	"errors"
+	"github.com/crochee/lirity/logger"
 	"log"
 	"testing"
-	"time"
-
-	"github.com/crochee/lirity/logger"
 )
 
 type taskFirst struct {
@@ -27,14 +25,6 @@ func (t taskFirst) State() (State, error) {
 
 func (t taskFirst) Description() string {
 	return ""
-}
-
-func (t taskFirst) CreateTime() time.Time {
-	return time.Now()
-}
-
-func (t taskFirst) UpdateTime() time.Time {
-	return time.Now()
 }
 
 func (t taskFirst) Meta() map[string]interface{} {
@@ -70,14 +60,6 @@ func (t taskSecond) Description() string {
 	return ""
 }
 
-func (t taskSecond) CreateTime() time.Time {
-	return time.Now()
-}
-
-func (t taskSecond) UpdateTime() time.Time {
-	return time.Now()
-}
-
 func (t taskSecond) Meta() map[string]interface{} {
 	return map[string]interface{}{}
 }
@@ -108,14 +90,6 @@ func (t taskPanic) State() (State, error) {
 
 func (t taskPanic) Description() string {
 	return ""
-}
-
-func (t taskPanic) CreateTime() time.Time {
-	return time.Now()
-}
-
-func (t taskPanic) UpdateTime() time.Time {
-	return time.Now()
 }
 
 func (t taskPanic) Meta() map[string]interface{} {
