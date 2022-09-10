@@ -3,12 +3,12 @@ package workflow
 import (
 	"context"
 	"testing"
-
-	"github.com/crochee/lirity/logger"
+	"time"
 )
 
 func TestRetryTask(t *testing.T) {
-	ctx := logger.With(context.Background(), logger.New())
-	t.Log(Execute(ctx, RetryTask(taskSecond{}, WithAttempt(3))))
-	t.Log(Execute(ctx, RetryTask(taskSecond{}, WithPolicy(PolicyRevert), WithAttempt(3))))
+	f := NewFunc(UI)
+
+	t.Log(RetryTask(f, WithAttempt(3)).Execute(context.Background(), nil))
+	t.Log(RetryTask(f, WithAttempt(3), WithInterval(time.Second)).Execute(context.Background(), nil))
 }

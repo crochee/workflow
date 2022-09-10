@@ -3,5 +3,5 @@ package workflow
 import "context"
 
 type Callback interface {
-	Trigger(ctx context.Context, task Task)
+	Trigger(ctx context.Context, info Info, input interface{}, err error)
 }
