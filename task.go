@@ -11,22 +11,22 @@ import (
 
 // Task is library's minimum unit
 type Task interface {
-	Info
 	Execute(ctx context.Context, input interface{}, callbacks ...Callback) error
 }
 
 func NewFunc(f func(context.Context, interface{}) error, opts ...Option) Task {
 	opt := &options{
-		info: DefaultTaskInfo(),
+		info: DefaultTaskInfo(""),
 	}
 	for _, o := range opts {
 		o.apply(opt)
 	}
 	// 初始化状态
-	funcName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-	opt.info.SetName(funcName)
+	if opt.info.Name() == "" {
+		funcName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+		opt.info.SetName(funcName)
+	}
 	opt.info.SetState(Ready)
-	opt.info.SetDescription("task")
 	return &funcTask{
 		Info:      opt.info,
 		f:         f,
@@ -68,7 +68,7 @@ func (f *funcTask) Execute(ctx context.Context, input interface{}, callbacks ...
 
 func NewTCCTask(t TCC, opts ...Option) *simpleTCCTask {
 	opt := &options{
-		info: DefaultTaskInfo(),
+		info: DefaultTaskInfo(""),
 	}
 	for _, o := range opts {
 		o.apply(opt)

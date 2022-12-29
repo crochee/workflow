@@ -4,7 +4,7 @@ import "context"
 
 func NewTaskPipeline(opts ...Option) *noopTaskPipeline {
 	opt := &options{
-		info: DefaultTaskInfo(),
+		info: DefaultTaskInfo(""),
 	}
 	for _, o := range opts {
 		o.apply(opt)

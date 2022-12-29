@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,37 +21,45 @@ const (
 type Info interface {
 	ID() string
 	Name() string
+	Trigger() string
 	State() State
 	Description() string
 	CreateTime() time.Time
 	UpdateTime() time.Time
+	Metadata() []byte
 	Error() error
 
+	SetTrigger(string)
 	SetName(string)
 	SetState(State)
 	SetDescription(string)
+	SetMetadata([]byte)
 	AddError(err error, states ...bool)
 }
 
-func DefaultTaskInfo(f ...func() time.Time) Info {
+func DefaultTaskInfo(id string, f ...func() time.Time) Info {
 	nowFunc := time.Now
 	if len(f) > 0 {
 		nowFunc = f[0]
 	}
-
+	if id == "" {
+		id = uuid.NewV4().String()
+	}
 	d := &defaultTaskInfo{
-		id:          uuid.NewV4().String(),
+		id:          id,
 		nowFunc:     nowFunc,
 		name:        atomic.Value{},
+		trigger:     atomic.Value{},
 		state:       atomic.Value{},
 		description: atomic.Value{},
+		meta:        atomic.Value{},
 		createTime:  time.Time{},
 		updateTime:  atomic.Value{},
-		err:         atomic.Value{},
 	}
 	now := d.nowFunc()
 	d.createTime = now
 	d.updateTime.Store(now)
+	d.SetState(Ready)
 	return d
 }
 
@@ -58,91 +67,119 @@ type defaultTaskInfo struct {
 	id          string
 	nowFunc     func() time.Time
 	name        atomic.Value
+	trigger     atomic.Value
 	state       atomic.Value
 	description atomic.Value
+	meta        atomic.Value
 	createTime  time.Time
 	updateTime  atomic.Value
-	err         atomic.Value
+	mutex       sync.RWMutex
+	err         error
 }
 
 func (t *defaultTaskInfo) ID() string {
 	return t.id
 }
 
-func (d *defaultTaskInfo) Name() string {
-	v, _ := d.name.Load().(string)
+func (t *defaultTaskInfo) Name() string {
+	v, _ := t.name.Load().(string)
 	return v
 }
 
-func (d *defaultTaskInfo) State() State {
-	v, _ := d.state.Load().(State)
+func (t *defaultTaskInfo) Trigger() string {
+	v, _ := t.trigger.Load().(string)
 	return v
 }
 
-func (d *defaultTaskInfo) Description() string {
-	v, _ := d.description.Load().(string)
+func (t *defaultTaskInfo) State() State {
+	v, _ := t.state.Load().(State)
 	return v
 }
 
-func (d *defaultTaskInfo) CreateTime() time.Time {
-	return d.createTime
-}
-
-func (d *defaultTaskInfo) UpdateTime() time.Time {
-	v, _ := d.updateTime.Load().(time.Time)
+func (t *defaultTaskInfo) Description() string {
+	v, _ := t.description.Load().(string)
 	return v
 }
 
-func (d *defaultTaskInfo) Error() error {
-	v, _ := d.err.Load().(error)
+func (t *defaultTaskInfo) CreateTime() time.Time {
+	return t.createTime
+}
+
+func (t *defaultTaskInfo) UpdateTime() time.Time {
+	v, _ := t.updateTime.Load().(time.Time)
 	return v
 }
 
-func (d *defaultTaskInfo) SetName(name string) {
-	d.name.Store(name)
-	d.updateTime.Store(d.nowFunc())
+func (t *defaultTaskInfo) Metadata() []byte {
+	v, _ := t.meta.Load().([]byte)
+	return v
 }
 
-func (d *defaultTaskInfo) SetState(state State) {
-	d.state.Store(state)
-	d.updateTime.Store(d.nowFunc())
+func (t *defaultTaskInfo) Error() error {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+	return t.err
 }
 
-func (d *defaultTaskInfo) SetDescription(desc string) {
-	d.description.Store(desc)
-	d.updateTime.Store(d.nowFunc())
+func (t *defaultTaskInfo) SetTrigger(s string) {
+	t.trigger.Store(s)
+	t.updateTime.Store(t.nowFunc())
 }
 
-func (d *defaultTaskInfo) setError(err error) {
+func (t *defaultTaskInfo) SetMetadata(m []byte) {
+	t.meta.Store(m)
+	t.updateTime.Store(t.nowFunc())
+}
+
+func (t *defaultTaskInfo) SetName(name string) {
+	t.name.Store(name)
+	t.updateTime.Store(t.nowFunc())
+}
+
+func (t *defaultTaskInfo) SetState(state State) {
+	t.state.Store(state)
+	t.updateTime.Store(t.nowFunc())
+}
+
+func (t *defaultTaskInfo) SetDescription(desc string) {
+	t.description.Store(desc)
+	t.updateTime.Store(t.nowFunc())
+}
+
+func (t *defaultTaskInfo) setError(err error) {
 	if err != nil {
-		d.err.Store(err)
-		d.updateTime.Store(d.nowFunc())
+		t.mutex.Lock()
+		t.err = err
+		t.mutex.Unlock()
+		t.updateTime.Store(t.nowFunc())
 	}
 }
 
-func (d *defaultTaskInfo) AddError(err error, states ...bool) {
+func (t *defaultTaskInfo) AddError(err error, states ...bool) {
 	setState := true
 	if len(states) > 0 {
 		setState = states[0]
 	}
-	curErr := d.Error()
+	curErr := t.Error()
 	if curErr != nil {
-		if setState {
-			d.SetState(Error)
+		if err != nil {
+			if setState {
+				t.SetState(Error)
+			}
 		}
-		d.setError(multierr.Append(curErr, err))
+		t.setError(multierr.Append(curErr, err))
 		return
 	}
 	if setState {
 		if err != nil {
-			d.SetState(Error)
-			d.setError(err)
+			t.SetState(Error)
+			t.setError(err)
 			return
 		}
-		d.SetState(Success)
+		t.SetState(Success)
 		return
 	}
 	if err != nil {
-		d.setError(err)
+		t.setError(err)
 	}
 }
